@@ -13,7 +13,7 @@ mv .env_sample .env
 Edit this file, and define the following variable.  This value can be retrieved from your (local) Langflow instance by clicking on the "</> API" button.
 
 ```
-MCW_URL=<your Minecraft service's (Fast)API endpoint>
+REACT_APP_MCW_URL=<your Minecraft service's (Fast)API endpoint>
 ```
 
 ## React.js dependencies
