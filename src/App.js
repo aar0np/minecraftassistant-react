@@ -19,7 +19,6 @@ const DataStaxLogo = ({ isDarkMode }) => {
   );
 };
 
-
 // Custom styled message component
 const ChatMessage = ({ message = {}, isDarkMode = true }) => {
   const isAssistant = message.direction === 'incoming';
@@ -121,16 +120,17 @@ function App() {
         
         {/* Header */}
         <div className={`flex items-center justify-between p-4 border-b ${
-          isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
-              }`}>Minecraft AI Assistant</h2>
-              <p className="text-sm text-emerald-500">Online</p>
-            </div>
-          </div>
+  isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
+}`}>
+  <div className="flex items-center gap-3">
+    <DataStaxLogo isDarkMode={isDarkMode} /> {/* Add this line */}
+    <div>
+      <h2 className={`text-lg font-semibold ${
+        isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
+      }`}>Minecraft AI Assistant</h2>
+      <p className="text-sm text-emerald-500">Online</p>
+    </div>
+  </div>
           <div className="flex items-center gap-2">
             <Sun className={`h-4 w-4 ${
               isDarkMode ? 'text-zinc-400' : 'text-zinc-600'
