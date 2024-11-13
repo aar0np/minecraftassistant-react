@@ -19,10 +19,9 @@ const DataStaxLogo = ({ isDarkMode }) => {
   );
 };
 
-// Custom styled message component
 const ChatMessage = ({ message = {}, isDarkMode = true }) => {
   const isAssistant = message.direction === 'incoming';
-
+  
   const baseStyles = `
     rounded-lg p-3 max-w-[80%]
     ${isDarkMode 
@@ -31,16 +30,57 @@ const ChatMessage = ({ message = {}, isDarkMode = true }) => {
     }
   `;
 
+  // Function to process message content and apply formatting
+  const formatMessage = (content) => {
+    // Split content by double newlines to separate paragraphs
+    const paragraphs = content.split(/\n\n+/);
+    
+    return paragraphs.map((paragraph, index) => {
+      // Handle bullet points
+      if (paragraph.trim().startsWith('•') || paragraph.trim().startsWith('-')) {
+        const items = paragraph.split(/\n/).filter(item => item.trim());
+        return (
+          <ul key={index} className="list-disc list-inside space-y-1 mt-2">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="leading-relaxed">
+                {item.replace(/^[•-]\s*/, '')}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      
+      // Handle numbered lists
+      if (paragraph.match(/^\d+\./)) {
+        const items = paragraph.split(/\n/).filter(item => item.trim());
+        return (
+          <ol key={index} className="list-decimal list-inside space-y-1 mt-2">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="leading-relaxed">
+                {item.replace(/^\d+\.\s*/, '')}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      
+      // Regular paragraphs
+      return (
+        <p key={index} className={`${index > 0 ? 'mt-2' : ''} leading-relaxed`}>
+          {paragraph}
+        </p>
+      );
+    });
+  };
+
   return (
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
       <div className={baseStyles}>
         {isAssistant && (
           <Code className="inline-block mr-2 h-4 w-4 text-emerald-500" />
         )}
-        <div>
-          <p className={isDarkMode ? 'text-zinc-300' : 'text-zinc-700'}>
-            {message.message}
-          </p>
+        <div className="space-y-2">
+          {formatMessage(message.message)}
         </div>
       </div>
     </div>
@@ -50,7 +90,7 @@ const ChatMessage = ({ message = {}, isDarkMode = true }) => {
 function App() {
   const [messages, setMessages] = useState([
     {
-      message: "Hello, I am the Minecraft AI Assistant. How can I help you?",
+      message: "Hello, what questions do you have about Minecraft?",
       sender: "Minecraft Assistant",
       direction: "incoming"
     }
@@ -120,17 +160,17 @@ function App() {
         
         {/* Header */}
         <div className={`flex items-center justify-between p-4 border-b ${
-  isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
-}`}>
-  <div className="flex items-center gap-3">
-    <DataStaxLogo isDarkMode={isDarkMode} /> {/* Add this line */}
-    <div>
-      <h2 className={`text-lg font-semibold ${
-        isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
-      }`}>Minecraft AI Assistant</h2>
-      <p className="text-sm text-emerald-500">Online</p>
-    </div>
-  </div>
+          isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            <DataStaxLogo isDarkMode={isDarkMode} />
+            <div>
+              <h2 className={`text-lg font-semibold ${
+                isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
+              }`}>MC AI Assistant</h2>
+              <p className="text-sm text-emerald-500">Online</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Sun className={`h-4 w-4 ${
               isDarkMode ? 'text-zinc-400' : 'text-zinc-600'
@@ -173,7 +213,7 @@ function App() {
                     : 'bg-white text-zinc-800 border border-zinc-200'
                 }`}>
                   <Code className="inline-block mr-2 h-4 w-4 text-emerald-500" />
-                  The Minecraft Assistant is typing...
+                  MC AI Assistant is searching...
                 </div>
               </div>
             )}
