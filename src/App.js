@@ -23,12 +23,46 @@ const ChatMessage = ({ message = {}, isDarkMode = true }) => {
   const isAssistant = message.direction === 'incoming';
   
   const baseStyles = `
-    rounded-lg p-3 max-w-[80%]
+    rounded-lg p-4 max-w-[85%] 
     ${isDarkMode 
       ? isAssistant ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-700 text-zinc-200'
       : isAssistant ? 'bg-white text-zinc-800 border border-zinc-200' : 'bg-zinc-200 text-zinc-800'
     }
   `;
+
+  // Function to detect and format code blocks
+  const formatCodeBlock = (text) => {
+    const codeBlockRegex = /```([^`]+)```/g;
+    return text.split(codeBlockRegex).map((part, index) => {
+      if (index % 2 === 1) { // This is a code block
+        return (
+          <pre key={index} className={`mt-2 p-3 rounded-md overflow-x-auto ${
+            isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100'
+          }`}>
+            <code className="block font-mono text-sm">{part.trim()}</code>
+          </pre>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Function to format inline code
+  const formatInlineCode = (text) => {
+    const parts = text.split(/`([^`]+)`/);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) { // This is inline code
+        return (
+          <code key={index} className={`px-1.5 py-0.5 rounded font-mono text-sm ${
+            isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100'
+          }`}>
+            {part}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
 
   // Function to process message content and apply formatting
   const formatMessage = (content) => {
@@ -36,14 +70,24 @@ const ChatMessage = ({ message = {}, isDarkMode = true }) => {
     const paragraphs = content.split(/\n\n+/);
     
     return paragraphs.map((paragraph, index) => {
+      // Skip empty paragraphs
+      if (!paragraph.trim()) return null;
+
       // Handle bullet points
-      if (paragraph.trim().startsWith('•') || paragraph.trim().startsWith('-')) {
-        const items = paragraph.split(/\n/).filter(item => item.trim());
+      if (paragraph.trim().match(/^[•\-\*]/m)) {
+        const items = paragraph
+          .split(/\n/)
+          .filter(item => item.trim())
+          .map(item => {
+            // Convert all bullet point styles to •
+            return item.trim().replace(/^[•\-\*]\s*/, '• ');
+          });
+
         return (
-          <ul key={index} className="list-disc list-inside space-y-1 mt-2">
+          <ul key={index} className="space-y-2 my-3 ml-4">
             {items.map((item, itemIndex) => (
               <li key={itemIndex} className="leading-relaxed">
-                {item.replace(/^[•-]\s*/, '')}
+                {formatInlineCode(item)}
               </li>
             ))}
           </ul>
@@ -51,35 +95,58 @@ const ChatMessage = ({ message = {}, isDarkMode = true }) => {
       }
       
       // Handle numbered lists
-      if (paragraph.match(/^\d+\./)) {
-        const items = paragraph.split(/\n/).filter(item => item.trim());
+      if (paragraph.match(/^\d+\./m)) {
+        const items = paragraph
+          .split(/\n/)
+          .filter(item => item.trim())
+          .map(item => item.trim().replace(/^\d+\.\s*/, ''));
+
         return (
-          <ol key={index} className="list-decimal list-inside space-y-1 mt-2">
+          <ol key={index} className="space-y-2 my-3 ml-4">
             {items.map((item, itemIndex) => (
-              <li key={itemIndex} className="leading-relaxed">
-                {item.replace(/^\d+\.\s*/, '')}
+              <li key={itemIndex} className="list-decimal list-outside leading-relaxed">
+                {formatInlineCode(item)}
               </li>
             ))}
           </ol>
         );
       }
+
+      // Handle code blocks and inline code in regular paragraphs
+      const processedParagraph = formatCodeBlock(paragraph);
       
-      // Regular paragraphs
+      if (Array.isArray(processedParagraph)) {
+        return (
+          <div key={index} className={`${index > 0 ? 'mt-3' : ''}`}>
+            {processedParagraph.map((part, partIndex) => {
+              if (React.isValidElement(part)) {
+                return part;
+              }
+              return (
+                <p key={partIndex} className="leading-relaxed">
+                  {formatInlineCode(part)}
+                </p>
+              );
+            })}
+          </div>
+        );
+      }
+
       return (
-        <p key={index} className={`${index > 0 ? 'mt-2' : ''} leading-relaxed`}>
-          {paragraph}
+        <p key={index} className={`${index > 0 ? 'mt-3' : ''} leading-relaxed`}>
+          {formatInlineCode(processedParagraph)}
         </p>
       );
-    });
+    }).filter(Boolean);
   };
 
   return (
-    <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+    <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} mb-4`}>
       <div className={baseStyles}>
         {isAssistant && (
           <Code className="inline-block mr-2 h-4 w-4 text-emerald-500" />
         )}
-        <div className="space-y-2">
+        <div className="space-y-1">
           {formatMessage(message.message)}
         </div>
       </div>
