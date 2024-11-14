@@ -1,89 +1,320 @@
-import { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Moon, Sun, Code } from 'lucide-react';
 
-import minecraftAILogo from './minecraft_ai_assistant.png';
-import './App.css';
-import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
-import { MainContainer, ChatContainer, MessageList, Message, MessageInput, TypingIndicator } from "@chatscope/chat-ui-kit-react"
+const DataStaxLogo = ({ isDarkMode }) => {
+  return (
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+      isDarkMode ? 'bg-zinc-700' : 'bg-zinc-200'
+    }`}>
+      <svg 
+        viewBox="0 0 30 13" 
+        className={`w-5 h-5 ${isDarkMode ? 'text-zinc-100' : 'text-zinc-900'}`}
+      >
+        <path
+          fill="currentColor"
+          d="M10.886.864H0v12.272h10.886l2.734-2.122V2.986L10.886.864ZM2.11 2.986h9.4v8.03h-9.4v-8.03ZM29.284 3.075V1h-9.953l-2.703 2.075v2.85L19.331 8h8.674v2.924H17.167V13h10.22l2.703-2.076V8l-2.702-2.075h-8.675v-2.85h10.571Z"
+        />
+      </svg>
+    </div>
+  );
+};
+
+const ChatMessage = ({ message = {}, isDarkMode = true }) => {
+  const isAssistant = message.direction === 'incoming';
+  
+  const baseStyles = `
+    rounded-lg p-4 max-w-[85%] 
+    ${isDarkMode 
+      ? isAssistant ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-700 text-zinc-200'
+      : isAssistant ? 'bg-white text-zinc-800 border border-zinc-200' : 'bg-zinc-200 text-zinc-800'
+    }
+  `;
+
+  // Function to detect and format code blocks
+  const formatCodeBlock = (text) => {
+    const codeBlockRegex = /```([^`]+)```/g;
+    return text.split(codeBlockRegex).map((part, index) => {
+      if (index % 2 === 1) { // This is a code block
+        return (
+          <pre key={index} className={`mt-2 p-3 rounded-md overflow-x-auto ${
+            isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100'
+          }`}>
+            <code className="block font-mono text-sm">{part.trim()}</code>
+          </pre>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Function to format inline code
+  const formatInlineCode = (text) => {
+    const parts = text.split(/`([^`]+)`/);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) { // This is inline code
+        return (
+          <code key={index} className={`px-1.5 py-0.5 rounded font-mono text-sm ${
+            isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100'
+          }`}>
+            {part}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Function to process message content and apply formatting
+  const formatMessage = (content) => {
+    // Split content by double newlines to separate paragraphs
+    const paragraphs = content.split(/\n\n+/);
+    
+    return paragraphs.map((paragraph, index) => {
+      // Skip empty paragraphs
+      if (!paragraph.trim()) return null;
+
+      // Handle bullet points
+      if (paragraph.trim().match(/^[•\-\*]/m)) {
+        const items = paragraph
+          .split(/\n/)
+          .filter(item => item.trim())
+          .map(item => {
+            // Convert all bullet point styles to •
+            return item.trim().replace(/^[•\-\*]\s*/, '• ');
+          });
+
+        return (
+          <ul key={index} className="space-y-2 my-3 ml-4">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="leading-relaxed">
+                {formatInlineCode(item)}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      
+      // Handle numbered lists
+      if (paragraph.match(/^\d+\./m)) {
+        const items = paragraph
+          .split(/\n/)
+          .filter(item => item.trim())
+          .map(item => item.trim().replace(/^\d+\.\s*/, ''));
+
+        return (
+          <ol key={index} className="space-y-2 my-3 ml-4">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="list-decimal list-outside leading-relaxed">
+                {formatInlineCode(item)}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+
+      // Handle code blocks and inline code in regular paragraphs
+      const processedParagraph = formatCodeBlock(paragraph);
+      
+      if (Array.isArray(processedParagraph)) {
+        return (
+          <div key={index} className={`${index > 0 ? 'mt-3' : ''}`}>
+            {processedParagraph.map((part, partIndex) => {
+              if (React.isValidElement(part)) {
+                return part;
+              }
+              return (
+                <p key={partIndex} className="leading-relaxed">
+                  {formatInlineCode(part)}
+                </p>
+              );
+            })}
+          </div>
+        );
+      }
+
+      return (
+        <p key={index} className={`${index > 0 ? 'mt-3' : ''} leading-relaxed`}>
+          {formatInlineCode(processedParagraph)}
+        </p>
+      );
+    }).filter(Boolean);
+  };
+
+  return (
+    <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} mb-4`}>
+      <div className={baseStyles}>
+        {isAssistant && (
+          <Code className="inline-block mr-2 h-4 w-4 text-emerald-500" />
+        )}
+        <div className="space-y-1">
+          {formatMessage(message.message)}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [messages, setMessages] = useState([
     {
-      message: "Hello, I am the Minecraft AI Assistant. How can I help you?",
+      message: "Hello, what questions do you have about Minecraft?",
       sender: "Minecraft Assistant",
       direction: "incoming"
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [input, setInput] = useState('');
 
-  const handleSend = async (message) => {
-    const newMessage = {
-      message: message,
-      sender: "user",
-      direction: "outgoing"
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (input.trim()) {
+      const newMessage = {
+        message: input.trim(),
+        sender: "user",
+        direction: "outgoing"
+      };
+
+      const newMessages = [...messages, newMessage];
+      setMessages(newMessages);
+      setInput('');
+      
+      // Process message to API
+      setIsTyping(true);
+      await processMessageToAPI(newMessages, input.trim());
     }
-
-    const newMessages = [...messages, newMessage];
-
-    // update messages state
-    setMessages(newMessages);
-
-    // process message to API
-    setIsTyping(true);
-    await processMessageToAPI(newMessages, message);
   };
 
-  async function processMessageToAPI(chatMessages,chatMessage) {
-      // chatMessages { send: "user" or "ChatGPT", message: "message" }
-      // Langflow request object
-      // { input_value: "message", output_type: "chat", input_type: "chat" }
-
+  async function processMessageToAPI(chatMessages, chatMessage) {
     let apiMessage = { question: chatMessage };
-
-    console.log("MCW_URL=" + process.env.REACT_APP_MCW_URL)
-    console.log("apiMessage" + apiMessage)
-    console.log("body=" + JSON.stringify(apiMessage))
     
-    await fetch(process.env.REACT_APP_MCW_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(apiMessage)
-    }).then((data) => {
-      return data.json();
-    }).then((data) => {
-      // console.log(data.outputs[0].outputs[0].results.message.data.text);
-      setMessages(
-        [...chatMessages, {
+    try {
+      const response = await fetch(process.env.REACT_APP_MCW_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(apiMessage)
+      });
+      
+      const data = await response.json();
+      setMessages([
+        ...chatMessages,
+        {
           message: data.answer,
           sender: "Minecraft Assistant",
           direction: "incoming"
-        }]
-      );
+        }
+      ]);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
       setIsTyping(false);
-    });
+    }
   }
 
   return (
-    <div classname="App">
-      <div style={{ position: "relative", height: "600px", width: "700px"}}>
-        <img src={minecraftAILogo} height="100" alt=""/>
-        <MainContainer>
-          <ChatContainer>
-            <MessageList
-              scrollBehavior='smooth'
-              typingIndicator={isTyping ? <TypingIndicator content="The Minecraft Assistant is typing..." /> : null}
+    <div className={`min-h-screen w-full flex flex-col items-center p-4 ${
+      isDarkMode 
+        ? 'bg-zinc-950 text-zinc-100' 
+        : 'bg-zinc-100 text-zinc-900'
+    }`}>
+      <div className={`w-full max-w-2xl h-[600px] flex flex-col rounded-lg overflow-hidden ${
+        isDarkMode
+          ? 'bg-zinc-900 border-zinc-800'
+          : 'bg-white border-zinc-200'
+      } border`}>
+        
+        {/* Header */}
+        <div className={`flex items-center justify-between p-4 border-b ${
+          isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            <DataStaxLogo isDarkMode={isDarkMode} />
+            <div>
+              <h2 className={`text-lg font-semibold ${
+                isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
+              }`}>MC AI Assistant</h2>
+              <p className="text-sm text-emerald-500">Online</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Sun className={`h-4 w-4 ${
+              isDarkMode ? 'text-zinc-400' : 'text-zinc-600'
+            }`} />
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`w-11 h-6 rounded-full relative ${
+                isDarkMode ? 'bg-zinc-700' : 'bg-zinc-300'
+              }`}
             >
-              {messages.map((message, mIndex) => {
-                return <Message key={mIndex} model={message} />
-              })}
-            </MessageList>
-            <MessageInput placeholder='Type message here' onSend={handleSend} />
-          </ChatContainer>
-        </MainContainer>
+              <div
+                className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                  isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+            <Moon className={`h-4 w-4 ${
+              isDarkMode ? 'text-zinc-400' : 'text-zinc-600'
+            }`} />
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className={`flex-grow overflow-auto p-4 ${
+          isDarkMode ? 'bg-zinc-900' : 'bg-zinc-50'
+        }`}>
+          <div className="space-y-4">
+            {messages.map((message, index) => (
+              <ChatMessage
+                key={index}
+                message={message}
+                isDarkMode={isDarkMode}
+              />
+            ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className={`rounded-lg p-3 max-w-[80%] ${
+                  isDarkMode
+                    ? 'bg-zinc-800 text-zinc-300'
+                    : 'bg-white text-zinc-800 border border-zinc-200'
+                }`}>
+                  <Code className="inline-block mr-2 h-4 w-4 text-emerald-500" />
+                  MC AI Assistant is searching...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className={`p-4 border-t ${
+          isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
+        }`}>
+          <form onSubmit={handleSend} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+              className={`flex-grow p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                isDarkMode
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-300 placeholder-zinc-500'
+                  : 'bg-zinc-100 border-zinc-200 text-zinc-900 placeholder-zinc-500'
+              } border`}
+            />
+            <button
+              type="submit"
+              className="p-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-zinc-100"
+            >
+              <Send className="h-4 w-4" />
+              <span className="sr-only">Send</span>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default App;
